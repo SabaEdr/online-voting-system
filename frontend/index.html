@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم رأی‌گیری آنلاین</title>
+    <style>
+        /* Reset ساده و تنظیمات پایه */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: #f4f7f6; /* رنگ پس زمینه کمی ملایم تر */
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem 2rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        nav {
+            background-color: #343a40; /* کمی تیره تر برای کنتراست */
+            padding: 0.75rem 0;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        nav a {
+            color: #f8f9fa; /* رنگ روشن تر برای خوانایی */
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        nav a:hover, nav a.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        main {
+            flex-grow: 1;
+            width: 100%;
+            max-width: 900px; /* عرض محتوا کمی بیشتر */
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* مدیریت نمایش بخش ها (صفحات) */
+        .page-section {
+            display: none; /* همه بخش ها به طور پیش فرض مخفی */
+            padding: 2rem;
+            background-color: #ffffff; /* پس زمینه سفید برای محتوا */
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); /* سایه نرم تر */
+            animation: fadeIn 0.4s ease-in-out;
+            margin-bottom: 2rem; /* فاصله بین بخش ها اگر چندتا به اشتباه نمایش داده شوند */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-section:target {
+            display: block;
+        }
+        /* صفحه خانه به صورت پیش فرض (جاوااسکریپت این را کنترل دقیقتر می کند)*/
+         body:not([data-current-page]) #page-home {
+            /* display: block; */ /* JS handles this */
+        }
+
+
+        h2, h3 {
+            color: #0056b3; /* رنگ آبی تیره تر برای تیترها */
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        #page-dashboard h2, #page-dashboard h3 {
+             margin-top: 2rem;
+        }
+         #page-dashboard h2:first-of-type, #page-dashboard h3:first-of-type {
+             margin-top: 0;
+        }
+
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* فاصله بین عناصر فرم */
+            max-width: 450px; /* عرض فرم ها کمی بیشتر */
+            margin-left: auto;
+            margin-right: auto;
+            background-color: #fff; 
+            padding: 0; /* این استایل به خود سکشن منتقل شده */
+            border-radius: 0;/* این استایل به خود سکشن منتقل شده */
+            box-shadow: none; /* این استایل به خود سکشن منتقل شده */
+        }
+        
+        .page-section form { /* استایل فرم اگر درون سکشن باشد */
+            margin-bottom: 0;
+        }
+
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%; /* عرض کامل */
+            padding: 0.85rem; /* پدینگ کمی بیشتر */
+            border: 1px solid #ced4da; /* رنگ بوردر استانداردتر */
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            margin: 0; /* حذف مارجین اضافه */
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #80bdff; /* رنگ بوردر هنگام فوکوس */
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+
+        button, input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.05rem; /* فونت کمی بزرگتر */
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            width: auto; /* عرض خودکار */
+            align-self: center; /* دکمه ها در مرکز فرم */
+        }
+        form button, form input[type="submit"] {
+             width: 100%; /* دکمه های فرم عرض کامل */
+        }
+
+
+        button:hover, input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        button:active, input[type="submit"]:active {
+            transform: translateY(1px);
+        }
+
+        #polls-container .poll-item {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e9ecef; /* بوردر نرم */
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #polls-container .poll-item h4 {
+            margin-bottom: 1rem;
+            color: #212529; /* رنگ متن تیره تر */
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        #polls-container .poll-item .options {
+            margin-bottom: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        #polls-container .poll-item .options button {
+            background-color: #28a745; /* سبز برای دکمه رای */
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        #polls-container .poll-item .options button:hover {
+            background-color: #1e7e34;
+        }
+
+        #polls-container .poll-item .results-button {
+            background-color: #6c757d; /* خاکستری برای دکمه نتایج */
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        #polls-container .poll-item .results-button:hover {
+            background-color: #5a6268;
+        }
+
+        #results-container ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #results-container li {
+            padding: 0.6rem 0;
+            border-bottom: 1px dashed #e0e0e0;
+            font-size: 1.05rem;
+        }
+        #results-container li:last-child {
+            border-bottom: none;
+        }
+        #results-container strong {
+            color: #007bff;
+        }
+
+        #user-greeting {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.25rem;
+            color: #495057;
+        }
+        #user-greeting strong {
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .error-message {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 0.85rem 1.25rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .success-message { /* برای پیام های موفقیت آمیز اگر از alert استفاده نشود */
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 0.85rem 1.25rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+         hr.section-divider {
+            border: 0;
+            height: 1px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0));
+            margin: 2.5rem 0;
+        }
+        /* استایل‌های جدید برای بخش گزینه‌های داینامیک نظرسنجی */
+        #poll-options-container h4 {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: #555;
+    text-align: right; /* یا center اگر با بقیه فرم هماهنگ است */
+    }
+
+        .poll-option-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* فاصله بین اینپوت و دکمه حذف */
+    margin-bottom: 0.75rem;
+    }
+
+    .poll-option-input {
+    flex-grow: 1; /* اینپوت بیشترین فضا را بگیرد */
+    }
+
+    .remove-option-btn {
+    background-color: #dc3545 !important; /* رنگ قرمز برای حذف */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+    width: auto !important; /* عرض خودکار برای دکمه حذف */
+    align-self: center !important; /* هم‌ترازی عمودی */
+}
+
+.remove-option-btn:hover {
+    background-color: #c82333 !important;
+}
+
+#add-poll-option-btn {
+    background-color: #17a2b8 !important; /* رنگ متفاوت برای دکمه افزودن */
+}
+#add-poll-option-btn:hover {
+    background-color: #138496 !important;
+}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>سیستم رأی‌گیری آنلاین</h1>
+    </header>
+    <nav>
+        <a href="#page-home" id="nav-home">خانه</a>
+        <a href="#page-register" id="nav-register">ثبت‌نام</a>
+        <a href="#page-login" id="nav-login">ورود</a>
+        <a href="#page-dashboard" id="nav-dashboard" style="display:none;">داشبورد</a>
+        <a href="#" id="nav-logout" style="display:none;">خروج</a>
+    </nav>
+
+    <main>
+        <section id="page-home" class="page-section">
+            <h2>به سیستم رأی‌گیری خوش آمدید!</h2>
+            <p style="text-align: center; font-size: 1.1rem;">
+                برای ایجاد نظرسنجی، شرکت در رأی‌گیری و مشاهده نتایج، لطفاً 
+                <a href="#page-login" onclick="setActiveNavById('nav-login')">وارد شوید</a> یا 
+                <a href="#page-register" onclick="setActiveNavById('nav-register')">ثبت‌نام کنید</a>.
+            </p>
+        </section>
+
+        <section id="page-register" class="page-section">
+            <h2>ثبت‌نام کاربر جدید</h2>
+            <form id="register-form">
+                <input type="text" name="username" placeholder="نام کاربری" required>
+                <input type="password" name="password" placeholder="رمز عبور" required>
+                <button type="submit">ثبت‌نام</button>
+            </form>
+            <p style="text-align:center; margin-top:1.5rem;">حساب کاربری دارید؟ <a href="#page-login" onclick="setActiveNavById('nav-login')">وارد شوید</a>.</p>
+        </section>
+
+        <section id="page-login" class="page-section">
+            <h2>ورود به حساب کاربری</h2>
+            <form id="login-form">
+                <input type="text" name="username" placeholder="نام کاربری" required>
+                <input type="password" name="password" placeholder="رمز عبور" required>
+                <button type="submit">ورود</button>
+            </form>
+            <p style="text-align:center; margin-top:1.5rem;">حساب کاربری ندارید؟ <a href="#page-register" onclick="setActiveNavById('nav-register')">ثبت‌نام کنید</a>.</p>
+        </section>
+
+        <section id="page-dashboard" class="page-section">
+            <div id="user-greeting"></div>
+            
+            <div id="create-poll-area">
+    <h3>ایجاد نظرسنجی جدید</h3>
+    <form id="poll-form">
+        <input type="text" name="question" id="poll-question-input" placeholder="متن سؤال نظرسنجی" required>
+        
+        <div id="poll-options-container">
+            <h4>گزینه‌ها:</h4>
+            <div class="poll-option-entry">
+                <input type="text" name="options[]" class="poll-option-input" placeholder="گزینه ۱" required>
+                </div>
+            <div class="poll-option-entry">
+                <input type="text" name="options[]" class="poll-option-input" placeholder="گزینه ۲" required>
+                <button type="button" class="remove-option-btn" onclick="removePollOption(this)">حذف</button>
+            </div>
+        </div>
+        
+        <button type="button" id="add-poll-option-btn" style="background-color: #17a2b8; width:auto; align-self:flex-start;">+ افزودن گزینه</button>
+        <hr style="width:100%; margin-top:0.5rem; margin-bottom:1rem;">
+        <button type="submit">ایجاد نظرسنجی</button>
+    </form>
+</div>
+
+            <hr class="section-divider">
+
+            <div id="list-polls-area">
+                <h3>لیست تمام نظرسنجی‌ها</h3>
+                <div id="polls-container"></div>
+            </div>
+        </section>
+
+        <section id="page-poll-results" class="page-section">
+            <h3>نتایج نظرسنجی: <span id="results-poll-question" style="color:#333; font-weight:normal;"></span></h3>
+            <div id="results-container"></div>
+            <p style="text-align:center; margin-top:2rem;">
+                <a href="#page-dashboard" onclick="setActiveNavById('nav-dashboard')" class="results-button" style="background-color: #007bff; color:white; text-decoration:none; padding: 0.75rem 1.5rem; border-radius:5px;">بازگشت به داشبورد</a>
+            </p>
+        </section>
+    </main>
+
+<script>
+    let userId = null;
+    const pageIds = ['page-home', 'page-register', 'page-login', 'page-dashboard', 'page-poll-results'];
+    const navLinksMap = {
+        'page-home': 'nav-home',
+        'page-register': 'nav-register',
+        'page-login': 'nav-login',
+        'page-dashboard': 'nav-dashboard',
+        // نتایج لینک مستقیمی در نوبار ندارد، پس از داشبورد به آن میرویم
+    };
+
+    function updateNavVisibility() {
+        const navLogin = document.getElementById('nav-login');
+        const navRegister = document.getElementById('nav-register');
+        const navDashboard = document.getElementById('nav-dashboard');
+        const navLogout = document.getElementById('nav-logout');
+        const userGreetingEl = document.getElementById('user-greeting');
+
+        if (userId) {
+            navLogin.style.display = 'none';
+            navRegister.style.display = 'none';
+            navDashboard.style.display = 'inline-block';
+            navLogout.style.display = 'inline-block';
+            if (userGreetingEl) userGreetingEl.innerHTML = `خوش آمدید کاربر شماره: <strong>${userId}</strong>`;
+        } else {
+            navLogin.style.display = 'inline-block';
+            navRegister.style.display = 'inline-block';
+            navDashboard.style.display = 'none';
+            navLogout.style.display = 'none';
+            if (userGreetingEl) userGreetingEl.innerHTML = '';
+        }
+    }
+    
+    function setActiveNavById(activeNavId) {
+        document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
+        if (activeNavId && document.getElementById(activeNavId)) {
+            document.getElementById(activeNavId).classList.add('active');
+        }
+    }
+
+    function navigateToPage(pageId) {
+        // برای جلوگیری از اسکرول ناخواسته هنگام تغییر هش اگر صفحه از قبل نمایش داده شده
+        const targetElement = document.getElementById(pageId);
+        if (targetElement && getComputedStyle(targetElement).display === 'none') {
+            window.location.hash = pageId;
+        } else if (targetElement) {
+             // اگر صفحه از قبل دیده می شد، فقط کلاس active را تنظیم کن
+             const activeNavLinkId = navLinksMap[pageId] || (userId ? 'nav-dashboard' : 'nav-home');
+             setActiveNavById(activeNavLinkId);
+        }
+
+
+        // اگر صفحه هدف، صفحه داشبورد است و کاربر لاگین نکرده، او را به صفحه لاگین بفرست
+        if ((pageId === 'page-dashboard' || pageId === 'page-poll-results') && !userId) {
+            window.location.hash = 'page-login'; 
+            setActiveNavById('nav-login');
+            return;
+        }
+        
+        // به‌روزرسانی لینک فعال در نوبار
+        const activeNavLinkId = navLinksMap[pageId] || (userId ? 'nav-dashboard' : 'nav-home');
+        setActiveNavById(activeNavLinkId);
+    }
+    
+    function handleHashChange() {
+        const hash = window.location.hash.substring(1);
+        const defaultPage = userId ? 'page-dashboard' : 'page-home';
+        const currentPageId = pageIds.includes(hash) ? hash : defaultPage;
+
+        if ((currentPageId === 'page-dashboard' || currentPageId === 'page-poll-results') && !userId) {
+            // اگر کاربر سعی دارد به صفحه داشبورد یا نتایج برود ولی لاگین نکرده
+            window.location.hash = 'page-login'; // اجبار به صفحه لاگین
+            setActiveNavById('nav-login');
+        } else {
+            // نمایش بخش مربوطه (CSS با :target این کار را می کند)
+            // و تنظیم لینک فعال در نوبار
+            const activeNavLinkId = navLinksMap[currentPageId] || (userId ? 'nav-dashboard' : 'nav-home');
+            setActiveNavById(activeNavLinkId);
+            
+            // اگر به داشبورد میرویم و کاربر لاگین کرده، نظرسنجی ها را بارگذاری کن
+            if (currentPageId === 'page-dashboard' && userId) {
+                fetchPolls();
+            }
+        }
+         // اطمینان از اینکه فقط یک صفحه نمایش داده می شود (اگر CSS :target به تنهایی کافی نبود)
+        pageIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = (id === currentPageId) ? 'block' : 'none';
+        });
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    window.addEventListener('load', () => {
+        // اینجا userId از localStorage یا کوکی خوانده نمی شود، پس همیشه null است
+        // مگر اینکه در آینده مکانیزم ذخیره سازی وضعیت ورود اضافه شود
+        updateNavVisibility();
+        handleHashChange(); // برای مدیریت هش اولیه در URL یا رفتن به صفحه پیش فرض
+    });
+
+    async function fetchPolls() {
+    if (!userId) return; 
+    const container = document.getElementById("polls-container");
+    container.innerHTML = "<p>در حال بارگذاری نظرسنجی‌ها...</p>";
+    try {
+        const res = await fetch("/poll/?action=list"); // مسیر نسبی
+        if (!res.ok) throw new Error(`خطا در شبکه: ${res.status}`);
+        const polls = await res.json();
+        container.innerHTML = "";
+
+        if (!polls || polls.length === 0) {
+            container.innerHTML = "<p>هنوز هیچ نظرسنجی ایجاد نشده است.</p>";
+            return;
+        }
+
+        for (const poll of polls) {
+            const pollDiv = document.createElement("div");
+            pollDiv.className = "poll-item";
+            pollDiv.innerHTML = `<h4>${poll.question} (کاربر: ${poll.created_by})</h4>`;
+            
+            const optionsContainer = document.createElement("div");
+            optionsContainer.className = "options";
+            const optsRes = await fetch(`/result/?poll_id=${poll.id}`); // مسیر نسبی
+            if (!optsRes.ok) {
+                console.error(`خطا در دریافت گزینه‌های نظرسنجی ${poll.id}: ${optsRes.status}`);
+                optionsContainer.innerHTML = "<p style='color:red;'>خطا در بارگذاری گزینه‌ها.</p>";
+            } else {
+                const optionsWithDetails = await optsRes.json(); // شامل option_text, votes, و id (که poll_options.id است)
+                
+                if (optionsWithDetails && optionsWithDetails.length > 0) {
+                    optionsWithDetails.forEach(opt => {
+                        const btn = document.createElement("button");
+                        btn.innerText = opt.option_text;
+                        // این خط بسیار مهم است: opt.id باید شناسه صحیح poll_options.id باشد
+                        btn.onclick = () => vote(poll.id, opt.id);
+                        optionsContainer.appendChild(btn);
+                    });
+                } else {
+                    optionsContainer.innerHTML = "<p>هنوز گزینه‌ای برای این نظرسنجی تعریف نشده است.</p>";
+                }
+            }
+            pollDiv.appendChild(optionsContainer);
+
+            const resultsButton = document.createElement("button");
+            resultsButton.innerText = "مشاهده نتایج";
+            resultsButton.className = "results-button";
+            // poll.question را به loadResults پاس می‌دهیم تا عنوان نظرسنجی را در صفحه نتایج نمایش دهیم
+            resultsButton.onclick = () => loadResults(poll.id, poll.question);
+            pollDiv.appendChild(resultsButton);
+
+            container.appendChild(pollDiv);
+        }
+    } catch (error) {
+        console.error("خطا در بارگذاری نظرسنجی‌ها:", error);
+        container.innerHTML = "<p class='error-message'>متاسفانه در بارگذاری نظرسنجی‌ها مشکلی پیش آمد.</p>";
+    }
+}
+
+    async function vote(pollId, optionId) {
+        if (!userId) {
+            alert("برای رأی دادن لطفاً ابتدا وارد شوید.");
+            navigateToPage('page-login');
+            return;
+        }
+        try {
+            const form = new FormData();
+            form.append("poll_id", pollId);
+            form.append("option_id", optionId); // optionId صحیح مستقیما از دکمه می آید
+            form.append("user_id", userId);
+
+            const r = await fetch("/vote/", { method: "POST", body: form }); // مسیر نسبی با اسلش انتهایی
+            if (!r.ok) {
+                 const errData = await r.json().catch(() => ({message: `خطای سرور: ${r.status}`}));
+                 throw new Error(errData.message || `خطای سرور: ${r.status}`);
+            }
+            const responseJson = await r.json();
+            alert(responseJson.message);
+            // پس از رای موفق، می توان نتایج را به روز کرد یا به صفحه نتایج رفت
+            if (responseJson.message && responseJson.message.toLowerCase().includes("submitted")) {
+                 loadResults(pollId, "آخرین نظرسنجی رأی داده شده"); // TODO: get question text properly
+            }
+        } catch (error) {
+            console.error("خطا در ثبت رأی:", error);
+            alert(`خطا در ثبت رأی: ${error.message}`);
+        }
+    }
+
+    async function loadResults(pollId, pollQuestionText) {
+        const resultsContainer = document.getElementById("results-container");
+        resultsContainer.innerHTML = "<p>در حال بارگذاری نتایج...</p>";
+        document.getElementById("results-poll-question").innerText = pollQuestionText;
+        navigateToPage('page-poll-results');
+
+        try {
+            const res = await fetch(`/result/?poll_id=${pollId}`); // مسیر نسبی
+            if (!res.ok) throw new Error(`خطا در شبکه: ${res.status}`);
+            const results = await res.json();
+            
+            resultsContainer.innerHTML = ""; 
+
+            if (!results || results.length === 0) {
+                resultsContainer.innerHTML = "<p>هنوز رأیی برای این نظرسنجی ثبت نشده یا گزینه‌ای وجود ندارد.</p>";
+            } else {
+                const ul = document.createElement("ul");
+                results.forEach(r => {
+                    const li = document.createElement("li");
+                    li.innerHTML = `${r.option_text}: <strong>${r.votes} رأی</strong>`;
+                    ul.appendChild(li);
+                });
+                resultsContainer.appendChild(ul);
+            }
+        } catch (error) {
+            console.error("خطا در بارگذاری نتایج:", error);
+            resultsContainer.innerHTML = "<p class='error-message'>متاسفانه در بارگذاری نتایج مشکلی پیش آمد.</p>";
+        }
+    }
+
+    document.getElementById("register-form").onsubmit = async e => {
+        e.preventDefault();
+        const form = new FormData(e.target);
+        try {
+            const res = await fetch("/auth/?action=register", { method: "POST", body: form }); // مسیر نسبی
+            const json = await res.json(); // همیشه سعی کن json را بخوانی
+            if (!res.ok) throw new Error(json.message || `خطا: ${res.status}`);
+            alert(json.message);
+            if (json.message && json.message.toLowerCase().includes("registered")) {
+                navigateToPage('page-login');
+            }
+        } catch (error) {
+            console.error("خطا در ثبت‌نام:", error);
+            alert(`خطا در ثبت‌نام: ${error.message}`);
+        }
+    };
+
+    document.getElementById("login-form").onsubmit = async e => {
+        e.preventDefault();
+        const form = new FormData(e.target);
+        try {
+            const res = await fetch("/auth/?action=login", { method: "POST", body: form }); // مسیر نسبی
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || `خطا: ${res.status}`);
+            
+            if (json.user_id) {
+                userId = json.user_id;
+                updateNavVisibility();
+                navigateToPage('page-dashboard');
+                // fetchPolls() خودکار توسط handleHashChange در صورت رفتن به داشبورد صدا زده می شود
+                alert(json.message || "ورود موفقیت‌آمیز بود.");
+            } else {
+                // اگر user_id نبود ولی پاسخ ok بود، یعنی پیام خطا از سمت سرور آمده
+                alert(json.message || "ورود ناموفق. لطفاً اطلاعات خود را بررسی کنید.");
+            }
+        } catch (error) {
+            console.error("خطا در ورود:", error);
+            alert(`خطا در ورود: ${error.message}`);
+        }
+    };
+
+    document.getElementById("poll-form").onsubmit = async e => {
+        e.preventDefault();
+        if (!userId) {
+            alert("برای ایجاد نظرسنجی لطفاً ابتدا وارد شوید.");
+            navigateToPage('page-login');
+            return;
+        }
+        const form = new FormData(e.target);
+        form.append("user_id", userId);
+        try {
+            const res = await fetch("/poll/?action=create", { method: "POST", body: form }); // مسیر نسبی
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message || `خطا: ${res.status}`);
+            
+            alert(json.message);
+            if (json.poll_id) {
+                e.target.reset(); 
+                fetchPolls(); 
+            }
+        } catch (error) {
+            console.error("خطا در ایجاد نظرسنجی:", error);
+            alert(`خطا در ایجاد نظرسنجی: ${error.message}`);
+        }
+    };
+
+    document.getElementById("nav-logout").onclick = (e) => {
+        e.preventDefault();
+        userId = null;
+        // در اینجا می توان اطلاعات ورود را از localStorage یا sessionStorage هم پاک کرد اگر استفاده شود
+        updateNavVisibility();
+        navigateToPage('page-home');
+        alert("شما با موفقیت خارج شدید.");
+    };
+
+    
+
+const optionsContainer = document.getElementById('poll-options-container');
+const addOptionButton = document.getElementById('add-poll-option-btn');
+let optionCounter = 2; // چون دو گزینه اولیه داریم
+
+addOptionButton.onclick = () => {
+    optionCounter++;
+    const newOptionEntry = document.createElement('div');
+    newOptionEntry.className = 'poll-option-entry';
+
+    const newInput = document.createElement('input');
+    newInput.type = 'text';
+    newInput.name = 'options[]'; // ارسال به عنوان آرایه به PHP (اگر PHP را تغییر دهید) یا بعدا join می کنیم
+    newInput.className = 'poll-option-input';
+    newInput.placeholder = `گزینه ${optionCounter}`;
+    newInput.required = true;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-option-btn';
+    removeBtn.innerText = 'حذف';
+    removeBtn.onclick = function() { removePollOption(this); };
+
+    newOptionEntry.appendChild(newInput);
+    newOptionEntry.appendChild(removeBtn);
+    optionsContainer.appendChild(newOptionEntry);
+};
+
+function removePollOption(buttonElement) {
+    // جلوگیری از حذف همه گزینه ها (حداقل یک یا دو گزینه باید بماند)
+    if (optionsContainer.querySelectorAll('.poll-option-entry').length > 2) { // حداقل دو گزینه باقی بماند
+        buttonElement.parentElement.remove();
+        // آپدیت کردن placeholder ها اگر نیاز باشد (اختیاری)
+        let currentIdx = 1;
+        optionsContainer.querySelectorAll('.poll-option-input').forEach(input => {
+            input.placeholder = `گزینه ${currentIdx++}`;
+        });
+        optionCounter = currentIdx -1; // آپدیت شمارنده کلی
+    } else {
+        alert("حداقل دو گزینه برای نظرسنجی لازم است.");
+    }
+}
+
+// اصلاح تابع onsubmit فرم ایجاد نظرسنجی
+document.getElementById("poll-form").onsubmit = async e => {
+    e.preventDefault();
+    if (!userId) {
+        alert("برای ایجاد نظرسنجی لطفاً ابتدا وارد شوید.");
+        navigateToPage('page-login');
+        return;
+    }
+
+    const form = e.target;
+    const questionInput = form.elements["question"]; // یا document.getElementById("poll-question-input")
+    const optionInputs = form.querySelectorAll(".poll-option-input"); // یا form.elements["options[]"]
+    
+    const formData = new FormData();
+    formData.append("question", questionInput.value);
+    formData.append("user_id", userId);
+
+    const optionsArray = [];
+    optionInputs.forEach(input => {
+        if (input.value.trim() !== "") { // فقط گزینه های پر شده را اضافه کن
+            optionsArray.push(input.value.trim());
+        }
+    });
+
+    if (optionsArray.length < 2) {
+        alert("لطفاً حداقل دو گزینه معتبر برای نظرسنجی وارد کنید.");
+        return;
+    }
+
+    
+    formData.append("options", optionsArray.join(",")); 
+
+    console.log("Submitting poll data:", { // برای دیباگ
+        question: questionInput.value,
+        options: optionsArray.join(","),
+        user_id: userId
+    });
+
+    try {
+        const res = await fetch("/poll/?action=create", { method: "POST", body: formData });
+        const responseText = await res.text();
+        let json;
+        try {
+            json = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error("Poll create: Non-JSON response", responseText);
+            alert(`خطا از سرور: ${responseText}`);
+            return;
+        }
+
+        if (!res.ok) {
+            alert(`خطا در ایجاد نظرسنجی: ${json.message || `کد ${res.status}`}`);
+            throw new Error(json.message || `خطا ${res.status}`);
+        }
+        
+        alert(json.message);
+        if (json.poll_id) {
+            form.reset(); // پاک کردن فرم اصلی
+            // پاک کردن و بازنشانی گزینه های داینامیک
+            optionsContainer.innerHTML = `
+                <h4>گزینه‌ها:</h4>
+                <div class="poll-option-entry">
+                    <input type="text" name="options[]" class="poll-option-input" placeholder="گزینه ۱" required>
+                </div>
+                <div class="poll-option-entry">
+                    <input type="text" name="options[]" class="poll-option-input" placeholder="گزینه ۲" required>
+                    <button type="button" class="remove-option-btn" onclick="removePollOption(this)">حذف</button>
+                </div>`;
+            optionCounter = 2;
+            fetchPolls(); 
+        }
+    } catch (error) {
+        console.error("خطا در ایجاد نظرسنجی:", error);
+        // alert در بالا انجام شده، مگر اینکه خطای دیگری باشد
+    }
+};
+
+</script>
+</body>
+</html>

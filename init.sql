@@ -1,0 +1,30 @@
+CREATE DATABASE IF NOT EXISTS voting;
+USE voting;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE polls (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  question VARCHAR(255) NOT NULL,
+  created_by INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE poll_options (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poll_id INT,
+  option_text VARCHAR(255),
+  FOREIGN KEY (poll_id) REFERENCES polls(id)
+);
+
+CREATE TABLE votes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poll_id INT,
+  option_id INT,
+  user_id INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
