@@ -1,0 +1,47 @@
+version: '3'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: voting
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  auth-service:
+    build: ./auth-deployment
+    ports:
+      - "8001:80"
+    depends_on:
+      - mysql
+
+  poll-service:
+    build: ./auth-deployment
+    ports:
+      - "8002:80"
+    depends_on:
+      - mysql
+
+  vote-service:
+    build: ./vote-deployment
+    ports:
+      - "8003:80"
+    depends_on:
+      - mysql
+
+  result-service:
+    build: ./result-deployment
+    ports:
+      - "8004:80"
+    depends_on:
+      - mysql
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+
+volumes:
+  dbdata:

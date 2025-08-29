@@ -1,0 +1,163 @@
+kind: Deployment
+metadata:
+    annotations:
+        deployment.kubernetes.io/revision: "4"
+    generation: 23
+    labels:
+        app: mysql
+    name: mysql
+spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+        matchLabels:
+            app: mysql
+    strategy:
+        type: Recreate
+    template:
+        metadata:
+            creationTimestamp: null
+            labels:
+                app: mysql
+        spec:
+            affinity:
+                nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                        nodeSelectorTerms:
+                            - matchExpressions:
+                                  - key: node-role.kubernetes.io/cloud-container-g2
+                                    operator: In
+                                    values:
+                                        - "true"
+            containers:
+                - env:
+                      - name: MYSQL_ROOT_PASSWORD
+                        valueFrom:
+                            secretKeyRef:
+                                key: MYSQL_ROOT_PASSWORD
+                                name: mysql-secret
+                      - name: MYSQL_DATABASE
+                        value: voting
+                  image: mysql:8.0
+                  imagePullPolicy: IfNotPresent
+                  livenessProbe:
+                      failureThreshold: 3
+                      initialDelaySeconds: 15
+                      periodSeconds: 10
+                      successThreshold: 1
+                      tcpSocket:
+                          port: 3306
+                      timeoutSeconds: 1
+                  name: mysql
+                  ports:
+                      - containerPort: 3306
+                        protocol: TCP
+                  readinessProbe:
+                      exec:
+                          command:
+                              - mysqladmin
+                              - ping
+                              - -h
+                              - 127.0.0.1
+                      failureThreshold: 3
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                      successThreshold: 1
+                      timeoutSeconds: 1
+                  resources:
+                      limits:
+                          cpu: 300m
+                          ephemeral-storage: 800M
+                          memory: 600M
+                      requests:
+                          cpu: 300m
+                          ephemeral-storage: 800M
+                          memory: 600M
+                  terminationMessagePath: /dev/termination-log
+                  terminationMessagePolicy: File
+                  volumeMounts:
+                      - mountPath: /var/lib/mysql
+                        name: mysql-storage
+                      - mountPath: /docker-entrypoint-initdb.d
+                        name: initdb
+            dnsPolicy: ClusterFirst
+            initContainers:
+                - command:
+                      - sh
+                      - -c
+                      - chown -R 999:999 /var/lib/mysql
+                  image: busybox
+                  imagePullPolicy: Always
+                  name: fix-permissions
+                  resources: {}
+                  terminationMessagePath: /dev/termination-log
+                  terminationMessagePolicy: File
+                  volumeMounts:
+                      - mountPath: /var/lib/mysql
+                        name: mysql-storage
+            restartPolicy: Always
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 30
+            tolerations:
+                - effect: NoSchedule
+                  key: role
+                  operator: Equal
+                  value: cloud-container-g2
+            volumes:
+                - name: mysql-storage
+                  persistentVolumeClaim:
+                      claimName: mysql-pvc
+                - configMap:
+                      defaultMode: 420
+                      name: mysql-initdb-config
+                  name: initdb
+---
+kind: Service
+metadata:
+    name: mysql
+spec:
+    clusterIP: 10.104.31.135
+    clusterIPs:
+        - 10.104.31.135
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+        - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+        - port: 3306
+          protocol: TCP
+          targetPort: 3306
+    selector:
+        app: mysql
+    sessionAffinity: None
+    type: ClusterIP
+---
+kind: PersistentVolumeClaim
+metadata:
+    annotations:
+        pv.kubernetes.io/bind-completed: yes
+        pv.kubernetes.io/bound-by-controller: yes
+        volume.beta.kubernetes.io/storage-provisioner: cinder.csi.openstack.org
+        volume.kubernetes.io/selected-node: caas-prd-worker-ba-122
+        volume.kubernetes.io/storage-provisioner: cinder.csi.openstack.org
+    finalizers:
+        - kubernetes.io/pvc-protection
+    name: mysql-pvc
+spec:
+    accessModes:
+        - ReadWriteOnce
+    resources:
+        requests:
+            storage: 5Gi
+    storageClassName: csi-cinder-sc-delete-az
+    volumeMode: Filesystem
+    volumeName: pvc-85b0c295-5b82-490d-9e2d-e7a883d31da7
+---
+data:
+    MYSQL_ROOT_PASSWORD: cm9vdHBhc3M=
+kind: Secret
+metadata:
+    name: mysql-secret
+type: Opaque

@@ -1,0 +1,132 @@
+kind: Deployment
+metadata:
+    annotations:
+        deployment.kubernetes.io/revision: "4"
+    generation: 16
+    name: auth-deployment
+spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+        matchLabels:
+            app: auth
+    strategy:
+        rollingUpdate:
+            maxSurge: 25%
+            maxUnavailable: 25%
+        type: RollingUpdate
+    template:
+        metadata:
+            annotations:
+                kubectl.kubernetes.io/restartedAt: 2025-05-30T14:35:27.973Z
+            creationTimestamp: null
+            labels:
+                app: auth
+        spec:
+            affinity:
+                nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                        nodeSelectorTerms:
+                            - matchExpressions:
+                                  - key: node-role.kubernetes.io/cloud-container-g2
+                                    operator: In
+                                    values:
+                                        - "true"
+            containers:
+                - image: sabaedr/auth-service:latest
+                  imagePullPolicy: Always
+                  name: auth
+                  ports:
+                      - containerPort: 80
+                        protocol: TCP
+                  resources:
+                      limits:
+                          cpu: 100m
+                          ephemeral-storage: 500M
+                          memory: 200M
+                      requests:
+                          cpu: 100m
+                          ephemeral-storage: 500M
+                          memory: 200M
+                  terminationMessagePath: /dev/termination-log
+                  terminationMessagePolicy: File
+            dnsPolicy: ClusterFirst
+            restartPolicy: Always
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 30
+            tolerations:
+                - effect: NoSchedule
+                  key: role
+                  operator: Equal
+                  value: cloud-container-g2
+---
+kind: Service
+metadata:
+    name: auth-service
+spec:
+    clusterIP: 10.98.132.223
+    clusterIPs:
+        - 10.98.132.223
+    internalTrafficPolicy: Cluster
+    ipFamilies:
+        - IPv4
+    ipFamilyPolicy: SingleStack
+    ports:
+        - port: 80
+          protocol: TCP
+          targetPort: 80
+    selector:
+        app: auth
+    sessionAffinity: None
+    type: ClusterIP
+---
+kind: Ingress
+metadata:
+    annotations:
+        nginx.ingress.kubernetes.io/rewrite-target: /$2
+        nginx.ingress.kubernetes.io/use-regex: "true"
+    generation: 8
+    name: voting-ingress
+spec:
+    ingressClassName: nginx
+    rules:
+        - host: sabadaryani.ir
+          http:
+              paths:
+                  - backend:
+                        service:
+                            name: auth-service
+                            port:
+                                number: 80
+                    path: /auth(/|$)(.*)
+                    pathType: Prefix
+                  - backend:
+                        service:
+                            name: poll-service2
+                            port:
+                                number: 80
+                    path: /poll(/|$)(.*)
+                    pathType: Prefix
+                  - backend:
+                        service:
+                            name: vote-service
+                            port:
+                                number: 80
+                    path: /vote(/|$)(.*)
+                    pathType: Prefix
+                  - backend:
+                        service:
+                            name: result-service
+                            port:
+                                number: 80
+                    path: /result(/|$)(.*)
+                    pathType: Prefix
+                  - backend:
+                        service:
+                            name: frontend
+                            port:
+                                number: 80
+                    path: /()(.*)
+                    pathType: Prefix
